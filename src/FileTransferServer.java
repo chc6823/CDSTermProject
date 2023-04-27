@@ -4,6 +4,7 @@ import java.util.concurrent.*;
 
 public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
+    private static final String FILE_DIRECTORY = "./received_files/";
 
     public static void main(String[] args) throws IOException {
         // 서버 소켓 생성
@@ -40,16 +41,30 @@ class ClientThread implements Runnable {
 
             // 클라이언트가 전송한 파일을 서버에 저장
             String fileName = in.readLine();
-            FileOutputStream fos = new FileOutputStream(new File("received_" + fileName));
+            // 파일이 있는 디렉토리 경로를 지정
+            File file = new File("C:\\Users\\chc68\\OneDrive\\문서\\" + fileName);
+            FileInputStream fis = new FileInputStream(file);
+
+            File outputFile = new File("C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\" +
+                    "협동분산시스템" + fileName);
+            FileOutputStream fos = new FileOutputStream(outputFile);
+
             byte[] buffer = new byte[1024];
             int bytesRead;
-            while ((bytesRead = clientSocket.getInputStream().read(buffer)) != -1) {
-                fos.write(buffer, 0, bytesRead);
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                clientSocket.getOutputStream().write(buffer, 0, bytesRead);
+            }
+            fis.close();
+
+            byte[] buffer2 = new byte[1024];
+            int bytesRead2;
+            while ((bytesRead2= clientSocket.getInputStream().read(buffer)) != -1) {
+                fos.write(buffer2, 0, bytesRead2);
             }
             fos.close();
 
             // 파일 전송 완료 메시지 전송
-            out.println("File " + fileName + " received successfully.");
+            out.println("File " + fileName + " sent successfully.");
         } catch (IOException e) {
             System.out.println("Error handling client: " + e);
         } finally {
@@ -63,3 +78,4 @@ class ClientThread implements Runnable {
         }
     }
 }
+

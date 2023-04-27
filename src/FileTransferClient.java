@@ -19,6 +19,9 @@ public class FileTransferClient {
             return;
         }
         File[] selectedFiles = fileChooser.getSelectedFiles();
+        for (File file : selectedFiles) {
+            System.out.println("File Name : "+file.getName());
+        }
 
         // 선택한 파일들을 서버에 전송
         for (File file : selectedFiles) {
@@ -28,17 +31,21 @@ public class FileTransferClient {
             out.println(file.getName());
 
             // 파일 내용 전송
-            FileInputStream fis = new FileInputStream(file);
+            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
             byte[] buffer = new byte[1024];
             int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
+            while ((bytesRead = bis.read(buffer)) != -1) {
                 socket.getOutputStream().write(buffer, 0, bytesRead);
             }
-            fis.close();
+            bis.close();
+
 
             // 파일 전송 완료 메시지 수신
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            System.out.println(in.readLine());
+            String response;
+            while ((response = in.readLine()) != null) {
+                System.out.println(response);
+            }
 
             // 소켓 닫기
             socket.close();
