@@ -5,9 +5,8 @@ import java.util.concurrent.*;
 
 public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
-    private static final String FILE_PATH
-            = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\협동분산시스템\\CDSTermProject3";;
-            // 저장할 파일 경로
+    private static final String FILE_PATH = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\협동분산시스템\\CDSTermProject3";
+    // 저장할 파일 경로
 
     private final ArrayList<ClientThread> clients; // 접속한 클라이언트들의 소켓 정보를 저장하는 ArrayList
 
@@ -34,22 +33,21 @@ public class FileTransferServer {
                 System.out.println("New client connected: " + clientSocket.getInetAddress());
 
                 // 새로운 클라이언트의 소켓을 이용하여 클라이언트 쓰레드 생성
-                Runnable clientThread = new ClientThread(clientSocket, this);
+                ClientThread clientThread = new ClientThread(clientSocket, this);
+                clients.add(clientThread); // 새로운 클라이언트 정보를 ArrayList에 추가
                 clientThreadPool.execute(clientThread);
             }
-
             // 서버 종료 처리
             clientThreadPool.shutdown();
-
         }
     }
 
-    public void saveFile(String fileName, byte[] content) throws IOException {
+    public void saveFile(String fileName, String content) throws IOException {
         // 파일 생성
-        File file = new File(FILE_PATH + fileName);
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
-            bos.write(content);
-            bos.flush();
+        File file = new File(FILE_PATH + File.separator + fileName);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.print(content);
+            writer.flush();
         }
     }
 
@@ -59,9 +57,7 @@ public class FileTransferServer {
             System.out.println("Client disconnected: " + clientThread.getClientSocket().getInetAddress());
         }
     }
-
 }
-
 class ClientThread implements Runnable {
     private final Socket clientSocket;
     private final FileTransferServer server;
@@ -87,28 +83,14 @@ class ClientThread implements Runnable {
 
             // 파일 전송 요청 대기
             while (true) {
-                String request = dataInputStream.readUTF();
-                if (request.equals("SEND_FILE")) {
-                    // 클라이언트로부터 파일 전송 요청을 받음
-                    out.println("Please select a file to send.");
+                String fileName = dataInputStream.readUTF();
+                String fileContent = dataInputStream.readUTF();
 
-                    // 파일 이름 받음
-                    String fileName = dataInputStream.readUTF();
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = dataInputStream.read(buffer)) != -1) {
-                        baos.write(buffer, 0, bytesRead);
-                    }
-                    byte[] content = baos.toByteArray();
-                    server.saveFile(fileName, content);
+                // 파일 저장
+                server.saveFile(fileName, fileContent);
 
-                    // 파일 전송 완료 메시지 전송
-                    out.println("File transfer completed.");
-                } else {
-                    // 잘못된 요청인 경우
-                    out.println("Invalid request.");
-                }
+                // 파일 전송 완료 메시지 전송
+                out.println("File transfer completed.");
             }
         } catch (IOException e) {
             System.out.println("Error handling client: " + e);
@@ -123,6 +105,4 @@ class ClientThread implements Runnable {
             }
         }
     }
-
 }
-
