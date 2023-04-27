@@ -34,11 +34,12 @@ public class FileTransferClient {
             try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
+                OutputStream os = socket.getOutputStream();
                 while ((bytesRead = bis.read(buffer)) != -1) {
                     socket.getOutputStream().write(buffer, 0, bytesRead);
                     System.out.println(bytesRead);
                 }
-                socket.getOutputStream().flush();
+                os.flush();
                 socket.shutdownOutput();
             }
 

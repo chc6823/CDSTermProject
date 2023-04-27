@@ -56,6 +56,10 @@ class ClientThread implements Runnable {
 
             // 파일 전송 완료 메시지 전송
             out.println("File " + fileName + " sent successfully.");
+
+            // 클라이언트가 파일 전송을 마칠 때까지 대기
+            while (clientSocket.getInputStream().read() != -1) {}
+
         } catch (IOException e) {
             System.out.println("Error handling client: " + e);
         } finally {
