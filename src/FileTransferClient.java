@@ -12,14 +12,16 @@ public class FileTransferClient {
         // 클라이언트 스레드 풀 생성
         ExecutorService clientThreadPool = Executors.newFixedThreadPool(10);
 
-        while (true) {
-            // 서버에 전송할 파일 선택
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setMultiSelectionEnabled(true);
-            int result = fileChooser.showOpenDialog(null);
-            if (result != JFileChooser.APPROVE_OPTION) {
-                break;
-            }
+        // 파일 선택 창을 띄우고, 선택된 파일들을 서버에 전송
+        selectFilesAndSendToServer();
+    }
+
+    private static void selectFilesAndSendToServer() throws IOException {
+        // 서버에 전송할 파일 선택
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setMultiSelectionEnabled(true);
+        int result = fileChooser.showOpenDialog(null);
+        if (result == JFileChooser.APPROVE_OPTION) {
             File[] selectedFiles = fileChooser.getSelectedFiles();
             for (File file : selectedFiles) {
                 System.out.println("File Name : "+file.getName());
@@ -55,6 +57,9 @@ public class FileTransferClient {
                 // 소켓 닫기
                 socket.close();
             }
+
+            // 다시 파일 선택 창을 띄우기 위해 재귀 함수 호출
+            selectFilesAndSendToServer();
         }
     }
 }
