@@ -31,14 +31,16 @@ public class FileTransferClient {
             out.println(file.getName());
 
             // 파일 내용 전송
-            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = bis.read(buffer)) != -1) {
-                socket.getOutputStream().write(buffer, 0, bytesRead);
+            try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = bis.read(buffer)) != -1) {
+                    socket.getOutputStream().write(buffer, 0, bytesRead);
+                    System.out.println(bytesRead);
+                }
+                socket.getOutputStream().flush();
+                socket.shutdownOutput();
             }
-            bis.close();
-
 
             // 파일 전송 완료 메시지 수신
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
