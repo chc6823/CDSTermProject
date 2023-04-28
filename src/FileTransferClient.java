@@ -8,6 +8,8 @@ public class FileTransferClient {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int PORT_NUMBER = 4444;
 
+    private static int clientNum; // 클라이언트 일련번호
+
     public static void main(String[] args) throws IOException {
         // 파일 선택 창을 띄우고, 선택된 파일들을 서버에 전송
         selectFilesAndSendToServer();
@@ -50,5 +52,14 @@ public class FileTransferClient {
                 break; // JFileChooser 창에서 Cancel 버튼을 누르면 무한루프를 빠져나감
             }
         }
+    }
+    // synchronized 키워드를 사용하여 쓰레드 동기화
+    public synchronized static int getClientNum() {
+        return clientNum;
+    }
+
+    // synchronized 키워드를 사용하여 쓰레드 동기화
+    public synchronized static void setClientNum(int clientNum) {
+        FileTransferClient.clientNum = clientNum;
     }
 }

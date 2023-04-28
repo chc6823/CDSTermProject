@@ -7,6 +7,7 @@ public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
     private static final String FILE_PATH = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\협동분산시스템\\CDSTermProject3";
     // 저장할 파일 경로
+    private static int clientNum; // 클라이언트 일련번호
 
     private final ArrayList<ClientThread> clients; // 접속한 클라이언트들의 소켓 정보를 저장하는 ArrayList
 
@@ -30,14 +31,16 @@ public class FileTransferServer {
             // 클라이언트 접속 대기
             while (!Thread.currentThread().isInterrupted()) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " + clientSocket.getInetAddress());
+                clientNum++;
+                System.out.println("New client connected: Client Number " + clientNum);
 
                 // 새로운 클라이언트의 소켓을 이용하여 클라이언트 쓰레드 생성
-                ClientThread clientThread = new ClientThread(clientSocket, this);
+                ClientThread clientThread = new ClientThread(clientSocket, this,clientNum);
                 clients.add(clientThread); // 새로운 클라이언트 정보를 ArrayList에 추가
                 clientThreadPool.execute(clientThread);
             }
             // 서버 종료 처리
+            System.out.println("Server Terminated");
             clientThreadPool.shutdown();
         }
     }
@@ -54,17 +57,27 @@ public class FileTransferServer {
     public void removeClient(ClientThread clientThread) {
         if (clients.contains(clientThread)) {
             clients.remove(clientThread);
-            System.out.println("Client disconnected: " + clientThread.getClientSocket().getInetAddress());
+            System.out.println("Number "+clientNum+" Client disconnected");
         }
+    }
+    // synchronized 키워드를 사용하여 쓰레드 동기화
+    public synchronized static int getClientNum() {
+        return clientNum;
+    }
+    // synchronized 키워드를 사용하여 쓰레드 동기화
+    public synchronized static void setClientNum(int clientNum) {
+        FileTransferServer.clientNum = clientNum;
     }
 }
 class ClientThread implements Runnable {
     private final Socket clientSocket;
     private final FileTransferServer server;
+    private final int clientNum;
 
-    public ClientThread(Socket clientSocket, FileTransferServer server) {
+    public ClientThread(Socket clientSocket, FileTransferServer server,int clientNum) {
         this.clientSocket = clientSocket;
         this.server = server;
+        this.clientNum = clientNum;
     }
 
     public Socket getClientSocket() {
@@ -79,7 +92,7 @@ class ClientThread implements Runnable {
             DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
 
             // 클라이언트 정보 통보
-            out.println("You are connected to the server.");
+            out.println("You are connected to the server. Your client number is "+ clientNum);
 
             // 파일 전송 요청 대기
             while (true) {
@@ -93,7 +106,7 @@ class ClientThread implements Runnable {
                 out.println("File transfer completed.");
             }
         } catch (IOException e) {
-            System.out.println("Error handling client: " + e);
+            System.out.println("Error handling client "+clientNum+": " + e);
         } finally {
             try {
                 // 클라이언트 소켓 닫기
@@ -101,7 +114,7 @@ class ClientThread implements Runnable {
                 System.out.println("closing client socket");
                 clientSocket.close();
             } catch (IOException e) {
-                System.out.println("Error closing client socket: " + e);
+                System.out.println("Error closing client socket: "+clientNum+": " + e);
             }
         }
     }
