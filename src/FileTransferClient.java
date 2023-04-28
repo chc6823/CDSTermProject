@@ -1,8 +1,6 @@
 import javax.swing.*;
 import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 public class FileTransferClient {
     private static final String SERVER_ADDRESS = "localhost";
