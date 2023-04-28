@@ -1,16 +1,12 @@
 import javax.swing.*;
 import java.net.*;
 import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
 
 public class FileTransferClient {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int PORT_NUMBER = 4444;
 
     public static void main(String[] args) throws IOException {
-        // 클라이언트 스레드 풀 생성
-        ExecutorService clientThreadPool = Executors.newFixedThreadPool(10);
 
         // 파일 선택 창을 띄우고, 선택된 파일들을 서버에 전송
         selectFilesAndSendToServer();
