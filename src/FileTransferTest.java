@@ -5,7 +5,7 @@ import java.util.concurrent.Executors;
 public class FileTransferTest {
     private static final int NUM_CLIENTS = 3;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         // 클라이언트 스레드 풀 생성
         ExecutorService clientThreadPool = Executors.newFixedThreadPool(NUM_CLIENTS);
 
@@ -24,4 +24,5 @@ public class FileTransferTest {
             clientThreadPool.execute(client);
         }
     }
+
 }

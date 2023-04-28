@@ -89,21 +89,18 @@ class ClientThread implements Runnable {
                         File selectedFile = fileChooser.getSelectedFile();
 
                         // 파일 내용 전송
-                        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(selectedFile))) {
+                        try (BufferedInputStream bis = new BufferedInputStream(clientSocket.getInputStream());
+                             FileOutputStream fos = new FileOutputStream(selectedFile)) {
+
                             byte[] buffer = new byte[1024];
                             int bytesRead;
-                            OutputStream os = clientSocket.getOutputStream();
                             while ((bytesRead = bis.read(buffer)) != -1) {
-                                os.write(buffer, 0, bytesRead);
+                                fos.write(buffer, 0, bytesRead);
                             }
-                            os.flush();
-                            clientSocket.shutdownOutput();
                         }
 
-                        // 파일 전송 완료 메시지 수신
-                        BufferedReader fileIn = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        String response = fileIn.readLine();
-                        System.out.println(response);
+                        // 파일 전송 완료 메시지 전송
+                        out.println("File transfer completed.");
                     }
                 }
             }
@@ -113,6 +110,7 @@ class ClientThread implements Runnable {
             try {
                 // 클라이언트 소켓 닫기
                 server.removeClient(this); // 클라이언트 스레드 정보를 ArrayList에서 삭제
+                System.out.println("closing client socket");
                 clientSocket.close();
             } catch (IOException e) {
                 System.out.println("Error closing client socket: " + e);

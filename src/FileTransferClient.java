@@ -20,7 +20,7 @@ public class FileTransferClient {
         if (result == JFileChooser.APPROVE_OPTION) {
             File[] selectedFiles = fileChooser.getSelectedFiles();
             for (File file : selectedFiles) {
-                System.out.println("File Name : "+file.getName());
+                System.out.println("File Name : " + file.getName());
             }
 
             // 선택한 파일들을 서버에 전송
@@ -32,30 +32,27 @@ public class FileTransferClient {
 
                 // 파일 내용 전송
                 try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    OutputStream os = socket.getOutputStream();
-                    while ((bytesRead = bis.read(buffer)) != -1) {
-                        os.write(buffer, 0, bytesRead);
-                        System.out.println(bytesRead);
+                    try (OutputStream os = socket.getOutputStream()) {
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = bis.read(buffer)) != -1) {
+                            os.write(buffer, 0, bytesRead);
+                        }
+                        os.flush();
                     }
-                    os.flush();
                     socket.shutdownOutput();
+
+                    // 파일 전송 완료 메시지 수신
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    String response;
+                    while ((response = in.readLine()) != null) {
+                        System.out.println(response);
+                    }
                 }
 
-                // 파일 전송 완료 메시지 수신
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String response;
-                while ((response = in.readLine()) != null) {
-                    System.out.println(response);
-                }
-
-                // 소켓 닫기
-                socket.close();
+                // 다시 파일 선택 창을 띄우기 위해 재귀 함수 호출
+                selectFilesAndSendToServer();
             }
-
-            // 다시 파일 선택 창을 띄우기 위해 재귀 함수 호출
-            selectFilesAndSendToServer();
         }
     }
 }
