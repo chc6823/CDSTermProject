@@ -1,12 +1,15 @@
-import javax.swing.*;
-import java.net.*;
 import java.io.*;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 
 public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
-    private final ArrayList<ClientThread> clients;// 접속한 클라이언트들의 소켓 정보를 저장하는 ArrayList
+    private static final String FILE_PATH
+            = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\협동분산시스템\\CDSTermProject3";;
+            // 저장할 파일 경로
+
+    private final ArrayList<ClientThread> clients; // 접속한 클라이언트들의 소켓 정보를 저장하는 ArrayList
 
     public FileTransferServer() {
         clients = new ArrayList<>();
@@ -41,6 +44,15 @@ public class FileTransferServer {
         }
     }
 
+    public void saveFile(String fileName, byte[] content) throws IOException {
+        // 파일 생성
+        File file = new File(FILE_PATH + fileName);
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+            bos.write(content);
+            bos.flush();
+        }
+    }
+
     public void removeClient(ClientThread clientThread) {
         if (clients.contains(clientThread)) {
             clients.remove(clientThread);
@@ -68,40 +80,34 @@ class ClientThread implements Runnable {
             // 클라이언트와의 입출력 스트림 생성
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
 
             // 클라이언트 정보 통보
             out.println("You are connected to the server.");
 
             // 파일 전송 요청 대기
             while (true) {
-                String line = in.readLine();
-                if (line == null || line.isEmpty()) {
-                    break;
-                } else if (line.equals("SEND_FILE")) {
+                String request = dataInputStream.readUTF();
+                if (request.equals("SEND_FILE")) {
                     // 클라이언트로부터 파일 전송 요청을 받음
                     out.println("Please select a file to send.");
 
-                    // 파일 선택 창을 띄우고, 선택된 파일을 서버에 전송
-                    JFileChooser fileChooser = new JFileChooser();
-                    fileChooser.setMultiSelectionEnabled(false);
-                    int result = fileChooser.showOpenDialog(null);
-                    if (result == JFileChooser.APPROVE_OPTION) {
-                        File selectedFile = fileChooser.getSelectedFile();
-
-                        // 파일 내용 전송
-                        try (BufferedInputStream bis = new BufferedInputStream(clientSocket.getInputStream());
-                             FileOutputStream fos = new FileOutputStream(selectedFile)) {
-
-                            byte[] buffer = new byte[1024];
-                            int bytesRead;
-                            while ((bytesRead = bis.read(buffer)) != -1) {
-                                fos.write(buffer, 0, bytesRead);
-                            }
-                        }
-
-                        // 파일 전송 완료 메시지 전송
-                        out.println("File transfer completed.");
+                    // 파일 이름 받음
+                    String fileName = dataInputStream.readUTF();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = dataInputStream.read(buffer)) != -1) {
+                        baos.write(buffer, 0, bytesRead);
                     }
+                    byte[] content = baos.toByteArray();
+                    server.saveFile(fileName, content);
+
+                    // 파일 전송 완료 메시지 전송
+                    out.println("File transfer completed.");
+                } else {
+                    // 잘못된 요청인 경우
+                    out.println("Invalid request.");
                 }
             }
         } catch (IOException e) {
@@ -110,17 +116,13 @@ class ClientThread implements Runnable {
             try {
                 // 클라이언트 소켓 닫기
                 server.removeClient(this); // 클라이언트 스레드 정보를 ArrayList에서 삭제
-                System.out.println("closing client socket");
+                System.out.println("closing client socket: ");
                 clientSocket.close();
             } catch (IOException e) {
                 System.out.println("Error closing client socket: " + e);
             }
         }
     }
+
 }
 
-//위 코드에서는 `ClientThread` 클래스에 `removeClient` 메소드를 추가하여,
-//클라이언트가 접속을 끊었을 때 서버에서 해당 클라이언트 스레드 정보를 제거하는 코드를 추가했습니다.
-//        또한 클라이언트로부터 "SEND_FILE"이라는 문자열을 전송받으면 파일 선택 창을 띄우고,
-//        선택된 파일을 서버에 전송하는 방식으로 변경하였습니다. 파일 전송이 완료되면
-//        클라이언트로부터 "File sent successfully."라는 메시지를 수신받고, 서버 측에서도 해당 메시지를 출력합니다.
