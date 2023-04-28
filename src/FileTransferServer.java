@@ -98,7 +98,7 @@ class ClientThread implements Runnable {
             try {
                 // 클라이언트 소켓 닫기
                 server.removeClient(this); // 클라이언트 스레드 정보를 ArrayList에서 삭제
-                System.out.println("closing client socket: ");
+                System.out.println("closing client socket");
                 clientSocket.close();
             } catch (IOException e) {
                 System.out.println("Error closing client socket: " + e);
