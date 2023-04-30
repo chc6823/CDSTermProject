@@ -5,7 +5,6 @@ public class FileClientTest {
         for (int i = 0; i < NUM_CLIENTS; i++) {
             // 클라이언트 생성 및 서버 접속
             FileClient client = new FileClient("localhost", 12345);
-            client.upload();
 
             // 파일 업로드 또는 다운로드
             client.upload();
