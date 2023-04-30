@@ -1,8 +1,8 @@
 import javax.swing.*;
 import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
 public class FileTransferClient {
     private static final String SERVER_ADDRESS = "localhost";
@@ -28,37 +28,48 @@ public class FileTransferClient {
         }
     }
 
-    private static synchronized void sendFilesToServer(File[] files) {
-        for (File file : files) {
-            // 파일 이름 및 내용 전송
-            try (Socket socket = new Socket(SERVER_ADDRESS, PORT_NUMBER);
-                 DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
-                out.writeUTF(file.getName());
-                out.writeLong(file.length());
+    private static void sendFilesToServer(File[] files) throws IOException {
+        try (SocketChannel socketChannel = SocketChannel.open()) {
+            socketChannel.connect(new InetSocketAddress(SERVER_ADDRESS, PORT_NUMBER));
+            System.out.println("Connected to server");
 
-                FileInputStream fileInputStream = new FileInputStream(file);
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = fileInputStream.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesRead);
-                }
-                fileInputStream.close();
+            for (File file : files) {
+                // 파일 이름 및 내용 전송
+                try (FileInputStream fileInputStream = new FileInputStream(file)) {
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    buffer.put(file.getName().getBytes());
+                    buffer.putLong(file.length());
+                    buffer.flip();
+                    socketChannel.write(buffer);
 
-                // 파일 전송 완료 메시지 수신
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String response;
-                while ((response = in.readLine()) != null) {
-                    System.out.println(response);
+                    buffer.clear();
+
+                    byte[] fileContent = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = fileInputStream.read(fileContent)) != -1) {
+                        buffer.put(fileContent, 0, bytesRead);
+                        buffer.flip();
+                        while (buffer.hasRemaining()) {
+                            socketChannel.write(buffer);
+                        }
+                        buffer.clear();
+                    }
+
+                    // 파일 전송 완료 메시지 수신
+                    buffer = ByteBuffer.allocate(1024);
+                    while (socketChannel.read(buffer) != -1) {
+                        buffer.flip();
+                        System.out.println(new String(buffer.array(), 0, buffer.limit()));
+                        buffer.clear();
+                    }
+                } catch (IOException e) {
+                    System.out.println("Error handling file: " + e);
                 }
-            } catch (IOException e) {
-                System.out.println("Error handling file: " + e);
             }
+        } catch (IOException e) {
+            System.out.println("Error connecting to server: " + e);
         }
         // 파일 전송이 끝나면 파일 선택 창 다시 띄우기
-        try {
-            selectFilesAndSendToServer();
-        } catch (IOException e) {
-            System.out.println("Error selecting files: " + e);
-        }
+        selectFilesAndSendToServer();
     }
 }

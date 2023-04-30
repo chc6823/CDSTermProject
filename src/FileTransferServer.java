@@ -1,122 +1,78 @@
-import java.io.*;
-import java.net.*;
-import java.util.ArrayList;
-import java.util.concurrent.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
-    private static final String FILE_PATH
-            = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\server";
+    private static final String FILE_PATH = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\server";
 
-    // 저장할 파일 경로
-    private static int clientNum; // 클라이언트 일련번호
-
-    private final ArrayList<ClientThread> clients; // 접속한 클라이언트들의 소켓 정보를 저장하는 ArrayList
-
-    public FileTransferServer() {
-        clients = new ArrayList<>();
-    }
-
-    public static void main(String[] args) throws IOException {
-        FileTransferServer server = new FileTransferServer();
-        server.startServer();
-    }
+    private final ByteBuffer buffer = ByteBuffer.allocate(1024);
 
     public void startServer() throws IOException {
-        // 서버 소켓 생성
-        try (ServerSocket serverSocket = new ServerSocket(PORT_NUMBER)) {
-            System.out.println("Server started on port " + PORT_NUMBER);
+        // 서버 소켓 채널 열기
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.bind(new InetSocketAddress(PORT_NUMBER));
+        serverSocketChannel.configureBlocking(false);
 
-            // 클라이언트 스레드 풀 생성
-            ExecutorService clientThreadPool = Executors.newFixedThreadPool(5);
+        // selector 열기
+        Selector selector = Selector.open();
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-            // 클라이언트 접속 대기
-            while (!Thread.currentThread().isInterrupted()) {
-                Socket clientSocket = serverSocket.accept();
-                clientNum++;
-                System.out.println("New client connected: Client Number " + clientNum);
+        // 클라이언트 스레드 풀 생성
+        ExecutorService clientThreadPool = Executors.newFixedThreadPool(5);
 
-                // 새로운 클라이언트의 소켓을 이용하여 클라이언트 쓰레드 생성
-                ClientThread clientThread = new ClientThread(clientSocket, this,clientNum);
-                clients.add(clientThread); // 새로운 클라이언트 정보를 ArrayList에 추가
-                clientThreadPool.execute(clientThread);
+        while (true) {
+            int readyChannels = selector.select();
+            if (readyChannels == 0) {
+                continue;
             }
-            // 서버 종료 처리
-            System.out.println("Server Terminated");
-            clientThreadPool.shutdown();
-        }
-    }
 
-    public void saveFile(String fileName, String content) throws IOException {
-        // 파일 생성
-        File file = new File(FILE_PATH + File.separator + fileName);
-        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-            writer.print(content);
-            writer.flush();
-        }
-    }
+            Set<SelectionKey> selectedKeys = selector.selectedKeys();
+            Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
-    public void removeClient(ClientThread clientThread) {
-        if (clients.contains(clientThread)) {
-            clients.remove(clientThread);
-            System.out.println("Number "+clientNum+" Client disconnected");
-        }
-    }
-    // synchronized 키워드를 사용하여 쓰레드 동기화
-    public synchronized static int getClientNum() {
-        return clientNum;
-    }
-    // synchronized 키워드를 사용하여 쓰레드 동기화
-    public synchronized static void setClientNum(int clientNum) {
-        FileTransferServer.clientNum = clientNum;
-    }
-}
-class ClientThread implements Runnable {
-    private final Socket clientSocket;
-    private final FileTransferServer server;
-    private final int clientNum;
+            while (keyIterator.hasNext()) {
+                SelectionKey key = keyIterator.next();
 
-    public ClientThread(Socket clientSocket, FileTransferServer server,int clientNum) {
-        this.clientSocket = clientSocket;
-        this.server = server;
-        this.clientNum = clientNum;
-    }
+                if (key.isAcceptable()) {
+                    // 새로운 클라이언트 요청
+                    SocketChannel clientChannel = serverSocketChannel.accept();
+                    clientChannel.configureBlocking(false);
+                    clientChannel.register(selector, SelectionKey.OP_READ);
+                } else if (key.isReadable()) {
+                    // 클라이언트 요청 처리
+                    SocketChannel clientChannel = (SocketChannel) key.channel();
+                    buffer.clear();
+                    int bytesRead = clientChannel.read(buffer);
 
-    public Socket getClientSocket() {
-        return clientSocket;
-    }
+                    if (bytesRead > 0) {
+                        // 파일 저장
+                        String content = new String(buffer.array(), 0, bytesRead);
+                        String fileName = "Server - " + System.currentTimeMillis() + ".txt";
+                        File file = new File(FILE_PATH + File.separator + fileName);
+                        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                            writer.print(content);
+                            writer.flush();
+                        }
 
-    public void run() {
-        try {
-            // 클라이언트와의 입출력 스트림 생성
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-            DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
+                        // 파일 전송 완료 메시지 전송
+                        ByteBuffer responseBuffer = ByteBuffer.wrap("File transfer completed.".getBytes());
+                        clientChannel.write(responseBuffer);
+                    } else {
+                        // 클라이언트 접속 종료
+                        key.cancel();
+                        clientChannel.close();
+                    }
+                }
 
-            // 클라이언트 정보 통보
-            out.println("You are connected to the server. Your client number is "+ clientNum);
-
-            // 파일 전송 요청 대기
-            while (true) {
-                String fileName = dataInputStream.readUTF();
-                String fileContent = dataInputStream.readUTF();
-
-                // 파일 저장
-                server.saveFile("Server - "+fileName, fileContent);
-
-                // 파일 전송 완료 메시지 전송
-                out.println("File transfer completed.");
-            }
-        } catch (IOException e) {
-            System.out.println("Error handling client "+clientNum+": " + e);
-        } finally {
-            try {
-                // 클라이언트 소켓 닫기
-                server.removeClient(this); // 클라이언트 스레드 정보를 ArrayList에서 삭제
-                System.out.println("closing client socket");
-                clientSocket.close();
-            } catch (IOException e) {
-                System.out.println("Error closing client socket: "+clientNum+": " + e);
+                keyIterator.remove();
             }
         }
     }
