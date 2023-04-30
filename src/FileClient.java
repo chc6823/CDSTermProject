@@ -46,15 +46,19 @@ public class FileClient {
                 }
                 try {
                     FileInputStream fileInput = new FileInputStream(file);
-                    OutputStream outputStream = socket.getOutputStream();
+                    ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
                     byte[] buffer = new byte[1024];
                     int bytesRead;
                     while ((bytesRead = fileInput.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
+                        byteArrayOutput.write(buffer, 0, bytesRead);
                     }
                     fileInput.close();
-                    outputStream.flush();
-                    System.out.println("File uploaded successfully: " + file.getName());
+                    byteArrayOutput.flush();
+                    byte[] bytes = byteArrayOutput.toByteArray();
+                    String fileName = file.getName();
+                    String fileContent = new String(bytes);
+                    sendMessage("FILE:" + fileName + ":" + fileContent);
+                    System.out.println("File uploaded successfully: " + fileName);
                 } catch (IOException e) {
                     System.out.println("Error: " + e.getMessage());
                 }
