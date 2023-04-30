@@ -25,7 +25,7 @@ public class FileServer {
                 ClientHandler client = new ClientHandler(socket);
                 clients.add(client);
                 client.start();
-                broadcast("Client connected: " + client.getSocketAddress());
+                broadcast("Client"+client.getClientId()+" connected.");
             } catch (IOException e) {
                 System.out.println("Error: " + e.getMessage());
                 break;
@@ -50,18 +50,25 @@ public class FileServer {
     }
 
     private class ClientHandler extends Thread {
-        private Socket socket;
+        private static int nextClientId = 1;
+        private final Socket socket;
+        private final int clientId;
         private BufferedReader input;
         private PrintWriter output;
 
         public ClientHandler(Socket socket) {
             this.socket = socket;
+            clientId = nextClientId++;
             try {
                 input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 output = new PrintWriter(socket.getOutputStream(), true);
             } catch (IOException e) {
                 System.out.println("Error: " + e.getMessage());
             }
+        }
+
+        public int getClientId() {
+            return clientId;
         }
 
         public void run() {
@@ -85,9 +92,9 @@ public class FileServer {
                 System.out.println("Error: " + e.getMessage());
             } finally {
                 try {
+                    broadcast("Client"+clientId+" disconnected.");
                     socket.close();
                     clients.remove(this);
-                    broadcast("Client disconnected: " + getSocketAddress());
                 } catch (IOException e) {
                     System.out.println("Error: " + e.getMessage());
                 }

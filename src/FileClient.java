@@ -33,35 +33,39 @@ public class FileClient {
     }
 
     public void upload() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setMultiSelectionEnabled(true);
-        fileChooser.setFileFilter(new FileNameExtensionFilter("Text files", "txt"));
-        int result = fileChooser.showOpenDialog(null);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File[] files = fileChooser.getSelectedFiles();
-            for (File file : files) {
-                if (!file.exists()) {
-                    System.out.println("Error: File not found");
-                    return;
-                }
-                try {
-                    FileInputStream fileInput = new FileInputStream(file);
-                    ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = fileInput.read(buffer)) != -1) {
-                        byteArrayOutput.write(buffer, 0, bytesRead);
+        while (true) {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setMultiSelectionEnabled(true);
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Text files", "txt"));
+            int result = fileChooser.showOpenDialog(null);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File[] files = fileChooser.getSelectedFiles();
+                for (File file : files) {
+                    if (!file.exists()) {
+                        System.out.println("Error: File not found");
+                        continue;
                     }
-                    fileInput.close();
-                    byteArrayOutput.flush();
-                    byte[] bytes = byteArrayOutput.toByteArray();
-                    String fileName = file.getName();
-                    String fileContent = new String(bytes);
-                    sendMessage("FILE:" + fileName + ":" + fileContent);
-                    System.out.println("File uploaded successfully: " + fileName);
-                } catch (IOException e) {
-                    System.out.println("Error: " + e.getMessage());
+                    try {
+                        FileInputStream fileInput = new FileInputStream(file);
+                        ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = fileInput.read(buffer)) != -1) {
+                            byteArrayOutput.write(buffer, 0, bytesRead);
+                        }
+                        fileInput.close();
+                        byteArrayOutput.flush();
+                        byte[] bytes = byteArrayOutput.toByteArray();
+                        String fileName = file.getName();
+                        String fileContent = new String(bytes);
+                        sendMessage("FILE:" + fileName + ":" + fileContent);
+                        System.out.println("File uploaded successfully: " + fileName);
+                    } catch (IOException e) {
+                        System.out.println("Error: " + e.getMessage());
+                    }
                 }
+            } else {
+                break;  // 사용자가 파일 선택을 취소하면 while문을 종료합니다.
             }
         }
     }
