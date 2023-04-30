@@ -5,7 +5,9 @@ import java.util.concurrent.*;
 
 public class FileTransferServer {
     private static final int PORT_NUMBER = 4444;
-    private static final String FILE_PATH = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\컴공\\5-1\\협동분산시스템\\CDSTermProject3";
+    private static final String FILE_PATH
+            = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\server";
+
     // 저장할 파일 경로
     private static int clientNum; // 클라이언트 일련번호
 
@@ -100,7 +102,7 @@ class ClientThread implements Runnable {
                 String fileContent = dataInputStream.readUTF();
 
                 // 파일 저장
-                server.saveFile(fileName, fileContent);
+                server.saveFile("Server - "+fileName, fileContent);
 
                 // 파일 전송 완료 메시지 전송
                 out.println("File transfer completed.");
