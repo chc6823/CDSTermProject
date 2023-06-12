@@ -7,8 +7,10 @@ public class LargeFileCreator {
 
     public static void main(String[] args) {
         Random rand = new Random();
+        String directoryPath = "C:\\Users\\chc68\\OneDrive\\바탕 화면";  // 원하는 경로 설정
         try {
-            PrintWriter writer = new PrintWriter(new FileWriter("largeFile.txt"));
+            File largeFile = new File(directoryPath, "largeFile.txt");
+            PrintWriter writer = new PrintWriter(new FileWriter(largeFile));
             long fileSize = 0;
             while (fileSize < 10 * 1024 * 1024) { // 10 MB
                 StringBuilder sb = new StringBuilder();
@@ -20,7 +22,7 @@ public class LargeFileCreator {
                 fileSize += 1024;
             }
             writer.close();
-            System.out.println("Created a 10MB file named largeFile.txt");
+            System.out.println("Created a 10MB file named " + largeFile.getAbsolutePath());
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
