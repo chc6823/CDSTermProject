@@ -96,8 +96,8 @@ public class FileServer {
                         String fileName = parts[1];
                         String fileContent = parts[2];
 
-                        FileMetadata metadata = new FileMetadata(fileName, 1);
-                        fileMetadataMap.put(fileName, metadata);
+                        FileMetadata metadata = new FileMetadata("server_" + fileName, 1);
+                        fileMetadataMap.put("server_" + fileName, metadata);
 
                         // Create the file in the server directory
                         try (PrintWriter writer = new PrintWriter(new FileWriter(baseDirectoryPath+"\\"+fileName))) {
@@ -106,10 +106,17 @@ public class FileServer {
                         } catch (IOException e) {
                             System.out.println("Error creating server file: " + e.getMessage());
                         }
+
                         // Create the file in the client directory
                         try (PrintWriter writer = new PrintWriter(new FileWriter(clientDirectoryPath + "\\" + fileName))) {
                             writer.write(fileContent);
                             System.out.println("Client file created: " + fileName);
+
+                            // Update client-side metadata
+                            FileMetadata clientMetadata = new FileMetadata("client_"+fileName, 1);
+                            clientMetadata.incrementLogicalClock();
+                            fileMetadataMap.put("client_"+fileName, clientMetadata);
+
                         } catch (IOException e) {
                             System.out.println("Error creating client file: " + e.getMessage());
                         }
@@ -118,13 +125,13 @@ public class FileServer {
 
                         //Delete request from client.
                         String fileName = message.split(":")[1];
-                        fileMetadataMap.remove(fileName);
-                        File fileToDelete = new File(clientDirectoryPath +"\\"+fileName);
+                        File fileToDelete = new File(clientDirectoryPath +"\\"+"client_"+fileName);
                         if (fileToDelete.exists()) {
                             if (fileToDelete.delete()) {
-                                System.out.println("File deleted successfully: " + fileName);
+                                System.out.println("File deleted successfully: " + "client_"+fileName);
+                                fileMetadataMap.remove("client_"+fileName);
                             } else {
-                                System.out.println("Failed to delete the file: " + fileName);
+                                System.out.println("Failed to delete the file: " + "client_"+fileName);
                             }
                         } else {
                             System.out.println("File not found: " + fileName);
@@ -135,33 +142,31 @@ public class FileServer {
                         String fileName = parts[1];
                         String fileContent = parts[2];
 
-                        FileMetadata metadata = fileMetadataMap.get(fileName);
+                        FileMetadata serverMetadata = fileMetadataMap.get("server_" + fileName);
 
-                        if (metadata != null) {
-                            if (metadata.getLogicalClock() > clientLogicalClock) {
+                        if (serverMetadata != null) {
+                            if (serverMetadata.getLogicalClock() != fileMetadataMap.get("client_" + fileName).getLogicalClock()) {
                                 // Conflict detected, delete the server file
-                                File serverFile = new File(baseDirectoryPath+"\\"+fileName);
+                                File serverFile = new File(baseDirectoryPath+"\\"+"server_" + fileName);
                                 if (serverFile.exists()) {
                                     if (serverFile.delete()) {
-                                        System.out.println("Server file deleted due to conflict: " + fileName);
+                                        System.out.println("Server file deleted due to conflict: " + "server_" + fileName);
+                                        // Recreate the server file with the same content
+                                        try (PrintWriter writer = new PrintWriter(new FileWriter(baseDirectoryPath + "\\" + "server_" + fileName))) {
+                                            writer.write(fileContent);
+                                            System.out.println("Server file recreated: " + "server_"+ fileName);
+                                        //synchronizing new serverfile's metaData and client's metaData
+                                            FileMetadata metadata = new FileMetadata("server_" + fileName,
+                                                    fileMetadataMap.get("client_" + fileName).getLogicalClock());
+                                            fileMetadataMap.put("server_" + fileName, metadata);
+                                        } catch (IOException e) {
+                                            System.out.println("Error recreating server file: " + e.getMessage());
+                                        }
                                     } else {
-                                        System.out.println("Failed to delete server file: " + fileName);
+                                        System.out.println("Failed to delete server file: " + "server_" + fileName);
                                     }
                                 } else {
-                                    System.out.println("Server file not found : "+fileName);
-                                }
-                            } else {
-                                // Update the file content in both the server and client directories
-                                try (PrintWriter serverWriter = new PrintWriter(new FileWriter(baseDirectoryPath+"\\"+fileName));
-                                     PrintWriter clientWriter = new PrintWriter(new FileWriter(clientDirectoryPath + "\\" + fileName))) {
-                                    serverWriter.write(fileContent);
-                                    clientWriter.write(fileContent);
-
-                                    // Update the logical clock
-                                    metadata.incrementLogicalClock();
-                                    System.out.println("File updated: " + fileName);
-                                } catch (IOException e) {
-                                    System.out.println("Error updating file: " + e.getMessage());
+                                    System.out.println("Server file not found : "+"server_" + fileName);
                                 }
                             }
                         }

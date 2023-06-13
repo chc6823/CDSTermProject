@@ -8,7 +8,6 @@ public class FileClientTest {
 
             // 파일 업로드 또는 다운로드
             client.upload();
-            // client.download("filename.txt");
 
             // 서버와의 연결 해제
             client.disconnect();
