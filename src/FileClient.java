@@ -1,7 +1,9 @@
 import java.io.*;
+import java.nio.file.*;
 import java.util.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -36,30 +38,52 @@ public class FileClient {
             // 서버에 클라이언트 ID 전송
             sendMessage("CLIENT_ID:" + clientId);
 
-            compareAndSendUpdateRequests();
+            // Start a thread to monitor file updates in the client directory
+            startFileUpdateDetectionThread();
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
 
-    private void compareAndSendUpdateRequests() {
-        File[] clientFiles = new File(clientDirectoryPath).listFiles();
-        if (clientFiles != null) {
-            for (File clientFile : clientFiles) {
-                String fileName = clientFile.getName();
-                long clientModifiedTime = clientFile.lastModified();
+    // Add a new private method to start the file update detection thread
+    private void startFileUpdateDetectionThread() {
+        Thread fileUpdateDetectionThread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(5000); // Sleep for 5 seconds before scanning for updates
 
-                File serverFile = new File(baseDirectoryPath + "\\" +"server_"+fileName);
-                long serverModifiedTime = serverFile.lastModified();
+                    // Scan the client directory for any file updates
+                    File[] files = new File(clientDirectoryPath).listFiles();
+                    if (files != null) {
+                        for (File file : files) {
+                            long lastModifiedTime = file.lastModified();
+                            String fileName = file.getName();
 
-                if (serverModifiedTime != clientModifiedTime) {
-                    // Server file is more recent, send an update request
-                    updateFile(serverFile);
+                            // Compare the last modified time with the stored value
+                            if (lastModifiedTimes.containsKey(fileName)) {
+                                long storedTime = lastModifiedTimes.get(fileName);
+                                if (lastModifiedTime > storedTime) {
+                                    // File has been modified, send an update request to the server
+                                    updateFile(file);
+                                    lastModifiedTimes.put(fileName, lastModifiedTime);
+                                }
+                            } else {
+                                lastModifiedTimes.put(fileName, lastModifiedTime);
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    System.out.println("File update detection thread interrupted: " + e.getMessage());
+                    break;
                 }
             }
-        }
+        });
+
+        fileUpdateDetectionThread.setDaemon(true);
+        fileUpdateDetectionThread.start();
     }
 
+    // Add a new private method to send an update request to the server
     private void updateFile(File file) {
         try {
             FileInputStream fileInput = new FileInputStream(file);
