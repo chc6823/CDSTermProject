@@ -86,16 +86,16 @@ public class FileClient {
             String fileName = file.getName();
             String fileContent = new String(bytes);
 
-            sendMessage("UPDATE:" + fileName + ":" + fileContent);
-            System.out.println("File updated successfully: " + fileName);
-
-            // Update the server file as well
-            try (PrintWriter writer = new PrintWriter(new FileWriter(baseDirectoryPath + "\\server_" + fileName))) {
+            // Update the server file
+            File serverFile = new File(baseDirectoryPath + "\\server_" + fileName);
+            try (PrintWriter writer = new PrintWriter(new FileWriter(serverFile))) {
                 writer.write(fileContent);
                 System.out.println("Server file updated: server_" + fileName);
             } catch (IOException e) {
                 System.out.println("Error updating server file: " + e.getMessage());
             }
+            sendMessage("UPDATE:" + fileName + ":" + fileContent);
+            System.out.println("File updated successfully: " + fileName);
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
