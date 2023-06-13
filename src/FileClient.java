@@ -11,7 +11,6 @@ public class FileClient {
     private String baseDirectoryPath = "C:\\Users\\chc68\\OneDrive\\바탕 화면\\server";
     private String clientId;
     private String clientDirectoryPath;
-    private Map<String, Long> lastModifiedTimes;
     private List<FileMetadata> fileMetadataList;
 
     public FileClient(String serverAddress, int serverPort) {
@@ -22,68 +21,80 @@ public class FileClient {
             System.out.println("Connected to server " + serverAddress + ":" + serverPort);
 
             this.fileMetadataList = new ArrayList<>();
-            this.lastModifiedTimes = new HashMap<>();
 
             clientId = UUID.randomUUID().toString();
             sendMessage("CLIENT_ID:" + clientId);
 
             clientDirectoryPath = baseDirectoryPath + "\\Client " + clientId;
-            startFileUpdateDetectionThread();
+            startFileUpdateDetectionThread(clientDirectoryPath);
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
 
-    private void startFileUpdateDetectionThread() {
-        Thread fileUpdateDetectionThread = new Thread(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(5000);
+    private void startFileUpdateDetectionThread(String directoryPath) {
+        Thread thread = new Thread(() -> {
+            try {
+                File folder = new File(directoryPath);
 
-                    File[] files = new File(clientDirectoryPath).listFiles();
-                    if (files != null) {
-                        for (File file : files) {
-                            long lastModifiedTime = file.lastModified();
-                            String fileName = file.getName();
+                while (true) {
+                    for (File file : folder.listFiles()) {
+                        if (!file.getName().startsWith("client_")) continue;
 
-                            if (lastModifiedTimes.containsKey(fileName)) {
-                                long storedTime = lastModifiedTimes.get(fileName);
-                                if (lastModifiedTime > storedTime) {
-                                    updateFile(file);
-                                    lastModifiedTimes.put(fileName, lastModifiedTime);
-                                }
-                            } else {
-                                lastModifiedTimes.put(fileName, lastModifiedTime);
-                            }
+                        // Check if the file exists in the file metadata list
+                        FileMetadata metadata = getFileMetadata(file.getName());
+                        if (metadata == null) { // File is newly created
+                            // Add the file to the file metadata list
+                            metadata = new FileMetadata(file.getName(), 0);
+                            fileMetadataList.add(metadata);
+                        } else if (file.lastModified() > metadata.getLogicalClock()) { // File is modified
+                            // Update the logical clock of the file metadata
+                            metadata.setLogicalClock(file.lastModified());
+
+                            // Wait for 2 seconds after the modification
+                            Thread.sleep(2000);
+
+                            // Update the file
+                            updateFile(file);
                         }
                     }
-                } catch (InterruptedException e) {
-                    System.out.println("File update detection thread interrupted: " + e.getMessage());
-                    break;
+
+                    Thread.sleep(500);
                 }
+            } catch (InterruptedException | NullPointerException e) {
+                e.printStackTrace();
             }
         });
 
-        fileUpdateDetectionThread.setDaemon(true);
-        fileUpdateDetectionThread.start();
+        thread.start();
     }
 
-    private void updateFile(File file) {
-        try (FileInputStream fileInput = new FileInputStream(file);
-             ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[10 * 1024 * 1024]; // 10MB buffer size
-            int bytesRead;
-            while ((bytesRead = fileInput.read(buffer)) != -1) {
-                byteArrayOutput.write(buffer, 0, bytesRead);
+    private FileMetadata getFileMetadata(String fileName) {
+        for (FileMetadata metadata : fileMetadataList) {
+            if (metadata.getFileName().equals(fileName)) {
+                return metadata;
             }
-            byteArrayOutput.flush();
-            byte[] bytes = byteArrayOutput.toByteArray();
+        }
+        return null;
+    }
 
+
+    private void updateFile(File file) {
+        try {
             String fileName = file.getName();
-            // Extract the pure file name without the "client_" prefix
-            String pureFileName = fileName.substring("client_".length());
-            String fileContent = new String(bytes);
+            String absoluteFilePath = file.getAbsolutePath();
+
+            BufferedReader br = new BufferedReader(new FileReader(absoluteFilePath));
+            String line;
+            StringBuilder sb = new StringBuilder();
+
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+                sb.append("\r\n"); // Use "\r\n" as the line separator for Windows
+            }
+            String fileContent = sb.toString();
+            System.out.println("Client's Filecontent : "+fileContent);
+            br.close();
 
             sendMessage("UPDATE:" + fileName + ":" + fileContent); // Use fileName instead of pureFileName
             System.out.println("File updated successfully: " + fileName);
@@ -91,6 +102,7 @@ public class FileClient {
             System.out.println("Error: " + e.getMessage());
         }
     }
+
 
     public void disconnect() {
         try {
@@ -122,19 +134,20 @@ public class FileClient {
                         System.out.println("Error: File not found");
                         continue;
                     }
-                    try (FileInputStream fileInput = new FileInputStream(file);
-                         ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream()) {
-
-                        byte[] buffer = new byte[1024 * 1024];
-                        int bytesRead;
-                        while ((bytesRead = fileInput.read(buffer)) != -1) {
-                            byteArrayOutput.write(buffer, 0, bytesRead);
-                        }
-                        byteArrayOutput.flush();
-                        byte[] bytes = byteArrayOutput.toByteArray();
-
+                    try {
                         String fileName = file.getName();
-                        String fileContent = new String(bytes);
+                        String absoluteFilePath = file.getAbsolutePath();
+
+                        BufferedReader br = new BufferedReader(new FileReader(absoluteFilePath));
+                        StringBuilder sb = new StringBuilder();
+                        String line;
+
+                        while ((line = br.readLine()) != null) {
+                            sb.append(line);
+                            sb.append("\r\n"); // Use "\r\n" as the line separator for Windows
+                        }
+                        br.close();
+                        String fileContent = sb.toString();
 
                         sendMessage("CREATE:" + fileName + ":" + fileContent);
 
@@ -151,7 +164,7 @@ public class FileClient {
 
     public static void main(String[] args) {
         FileClient client = new FileClient("localhost", 12345);
-        client.upload();
+        //client.upload();
         client.disconnect();
     }
 }

@@ -1,6 +1,6 @@
 public class FileMetadata {
     private String fileName;
-    private int logicalClock;
+    private long logicalClock;
 
     public FileMetadata(String fileName, int logicalClock) {
         this.fileName = fileName;
@@ -11,11 +11,15 @@ public class FileMetadata {
         return fileName;
     }
 
-    public int getLogicalClock() {
+    public long getLogicalClock() {
         return logicalClock;
     }
 
     public void incrementLogicalClock() {
         this.logicalClock++;
+    }
+
+    public void setLogicalClock(long l) {
+        this.logicalClock = l;
     }
 }
