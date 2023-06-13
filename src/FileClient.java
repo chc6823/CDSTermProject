@@ -1,12 +1,8 @@
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import javax.swing.JFileChooser;
+import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 public class FileClient {
     private Socket socket;
@@ -71,36 +67,30 @@ public class FileClient {
         fileUpdateDetectionThread.setDaemon(true);
         fileUpdateDetectionThread.start();
     }
+
     private void updateFile(File file) {
-        try {
-            FileInputStream fileInput = new FileInputStream(file);
-            ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
-            byte[] buffer = new byte[10*1024 * 1024];
+        try (FileInputStream fileInput = new FileInputStream(file);
+             ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[10 * 1024 * 1024]; // 10MB buffer size
             int bytesRead;
             while ((bytesRead = fileInput.read(buffer)) != -1) {
                 byteArrayOutput.write(buffer, 0, bytesRead);
             }
-            fileInput.close();
             byteArrayOutput.flush();
             byte[] bytes = byteArrayOutput.toByteArray();
+
             String fileName = file.getName();
+            // Extract the pure file name without the "client_" prefix
+            String pureFileName = fileName.substring("client_".length());
             String fileContent = new String(bytes);
 
-            // Update the server file
-            File serverFile = new File(baseDirectoryPath + "\\server_" + fileName);
-            try (PrintWriter writer = new PrintWriter(new FileWriter(serverFile))) {
-                writer.write(fileContent);
-                System.out.println("Server file updated: server_" + fileName);
-            } catch (IOException e) {
-                System.out.println("Error updating server file: " + e.getMessage());
-            }
-            sendMessage("UPDATE:" + fileName + ":" + fileContent);
+            sendMessage("UPDATE:" + fileName + ":" + fileContent); // Use fileName instead of pureFileName
             System.out.println("File updated successfully: " + fileName);
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
-
 
     public void disconnect() {
         try {
@@ -132,24 +122,22 @@ public class FileClient {
                         System.out.println("Error: File not found");
                         continue;
                     }
-                    try {
-                        FileInputStream fileInput = new FileInputStream(file);
-                        ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
-                        byte[] buffer = new byte[10*1024*1024];
+                    try (FileInputStream fileInput = new FileInputStream(file);
+                         ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream()) {
+
+                        byte[] buffer = new byte[1024 * 1024];
                         int bytesRead;
                         while ((bytesRead = fileInput.read(buffer)) != -1) {
                             byteArrayOutput.write(buffer, 0, bytesRead);
                         }
-
-                        fileInput.close();
                         byteArrayOutput.flush();
                         byte[] bytes = byteArrayOutput.toByteArray();
 
                         String fileName = file.getName();
                         String fileContent = new String(bytes);
-                        fileMetadataList.add(new FileMetadata(fileName, 1));
 
                         sendMessage("CREATE:" + fileName + ":" + fileContent);
+
                         System.out.println("File uploaded successfully: " + fileName);
                     } catch (IOException e) {
                         System.out.println("Error: " + e.getMessage());
@@ -159,10 +147,6 @@ public class FileClient {
                 break;
             }
         }
-    }
-
-    public String getClientId() {
-        return clientId;
     }
 
     public static void main(String[] args) {

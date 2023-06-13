@@ -52,7 +52,7 @@ public class FileServer {
             this.socket = socket;
 
             try {
-                BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 String message = input.readLine();
                 if (message.startsWith("CLIENT_ID:")) {
                     clientId = message.substring("CLIENT_ID:".length());
@@ -62,7 +62,6 @@ public class FileServer {
             }
 
             try {
-                input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 output = new PrintWriter(socket.getOutputStream(), true);
             } catch (IOException e) {
                 System.out.println("Error: " + e.getMessage());
@@ -87,7 +86,7 @@ public class FileServer {
             String message;
             try {
                 while ((message = input.readLine()) != null) {
-                    System.out.println("Received: " + message);
+                    System.out.println(message);
 
                     if (message.startsWith("CREATE:")) {
                         String[] parts = message.split(":");
@@ -132,31 +131,28 @@ public class FileServer {
                         String[] parts = message.split(":");
                         String fileName = parts[1];
                         String fileContent = parts[2];
+                        System.out.println("String fileName : "+fileName+" String fileContent: "+fileContent);
 
-                        FileMetadata serverMetadata = fileMetadataMap.get("server_" + fileName);
+                        // Extract the pure file name without the "client_" prefix,Test5
+                        String pureFileName = fileName.substring("client_".length());
+                        System.out.println("pureFileName : "+pureFileName);
 
-                        if (serverMetadata != null) {
-                            if (serverMetadata.getLogicalClock() != fileMetadataMap.get("client_" + fileName).getLogicalClock()) {
-                                File serverFile = new File(baseDirectoryPath + "\\" + "server_" + fileName);
-                                if (serverFile.exists()) {
-                                    if (serverFile.delete()) {
-                                        System.out.println("Server file deleted due to conflict: " + "server_" + fileName);
-                                        try (PrintWriter writer = new PrintWriter(new FileWriter(baseDirectoryPath + "\\" + "server_" + fileName))) {
-                                            writer.write(fileContent);
-                                            System.out.println("Server file recreated: " + "server_" + fileName);
-                                            FileMetadata metadata = new FileMetadata("server_" + fileName,
-                                                    fileMetadataMap.get("client_" + fileName).getLogicalClock());
-                                            fileMetadataMap.put("server_" + fileName, metadata);
-                                        } catch (IOException e) {
-                                            System.out.println("Error recreating server file: " + e.getMessage());
-                                        }
-                                    } else {
-                                        System.out.println("Failed to delete server file: server_" + fileName);
-                                    }
-                                } else {
-                                    System.out.println("Server file not found: server_" + fileName);
-                                }
+                        // Delete the existing server file
+                        File serverFile = new File(baseDirectoryPath + "\\server_" + pureFileName);
+                        if (serverFile.exists()) {
+                            if (serverFile.delete()) {
+                                System.out.println("Server file deleted: server_" + pureFileName);
+                            } else {
+                                System.out.println("Failed to delete server file: server_" + pureFileName);
                             }
+                        }
+                        // Create a new server file with the updated content
+                        File newServerFile = new File(baseDirectoryPath + "\\server_" + pureFileName);
+                        try (PrintWriter writer = new PrintWriter(new FileWriter(newServerFile))) {
+                            writer.write(fileContent);
+                            System.out.println("Server file created: server_" + pureFileName);
+                        } catch (IOException e) {
+                            System.out.println("Error creating server file: " + e.getMessage());
                         }
                     }
                 }
